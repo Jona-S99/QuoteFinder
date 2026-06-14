@@ -1,0 +1,30 @@
+info:
+  name: upload-files
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: http://localhost:8000/api/v1/vector-db/upload
+  body:
+    type: multipart-form
+    data:
+      - name: files
+        type: file
+        value:
+          - /Users/jona/Personal/Github/QuoteFinder/test-files/md/P05.md
+      - name: files
+        type: file
+        value:
+          - /Users/jona/Personal/Github/QuoteFinder/test-files/pdf/p01_docencia_investigacion.pdf
+      - name: files
+        type: file
+        value:
+          - /Users/jona/Personal/Github/QuoteFinder/test-files/word/P08.docx
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

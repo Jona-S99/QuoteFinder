@@ -1,0 +1,14 @@
+opencollection: 1.0.0
+info:
+  name: "bruno-QF"
+  type: workspace
+
+collections:
+  - name: "vector-db"
+    path: "collections/vector-db"
+  - name: "pages"
+    path: "collections/pages"
+
+specs:
+
+docs: ''
