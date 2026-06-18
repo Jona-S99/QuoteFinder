@@ -4,12 +4,12 @@
 # --------------------------------------------------------------------------
 
 # Librerias
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from fastapi import APIRouter, HTTPException, status
 from starlette.concurrency import run_in_threadpool
 
-from app.rag.retrieval import retrieve_chunks
+from app.rag.retrieval import EMBEDDING_MODEL, TOP_K, retrieve_chunks
 
 router = APIRouter(tags=["Retrieval"])
 
@@ -20,7 +20,9 @@ router = APIRouter(tags=["Retrieval"])
 
 # Clase para la respuesta
 class RetrievalQueryRequest(BaseModel):
-    query: str
+    query: str = Field(..., min_length=1, max_length=1_000)
+    embedding_model: str = Field(default=EMBEDDING_MODEL, min_length=1)
+    top_k: int = Field(default=TOP_K, ge=1, le=50)
 
 
 class RetrievedChunk(BaseModel):
@@ -28,11 +30,20 @@ class RetrievedChunk(BaseModel):
     metadata: dict
 
 
-@router.post("/retrieval/query", response_model=list[RetrievedChunk], status_code=status.HTTP_200_OK)
+@router.post(
+    "/retrieval/query",
+    response_model=list[RetrievedChunk],
+    status_code=status.HTTP_200_OK,
+)
 async def query_retrieval(payload: RetrievalQueryRequest):
     try:
         # Ejecutamos el retrieval
-        docs = await run_in_threadpool(retrieve_chunks, payload.query)
+        docs = await run_in_threadpool(
+            retrieve_chunks,
+            payload.query,
+            payload.embedding_model,
+            payload.top_k,
+        )
 
         # Retorno una lista
         return [

@@ -63,13 +63,20 @@ def config_retriever(
 
 
 # Creo una funcion para recuperar los chunks relevantes a partir de una consulta
-def retrieve_chunks(query: str) -> list[Document]:
+def retrieve_chunks(
+    query: str,
+    embedding_model: str = EMBEDDING_MODEL,
+    top_k: int = TOP_K,
+) -> list[Document]:
     """
     Recupera parents relevantes a partir de una consulta.
     Primero busca child chunks en LanceDB y luego expande cada child a su parent.
     """
     # Aplico la configuracion del retriever
-    retriever = config_retriever()
+    retriever = config_retriever(
+        embedding_model=embedding_model,
+        top_k=top_k,
+    )
 
     # Recupera children relevantes desde LanceDB
     child_hits = retriever.invoke(query)
