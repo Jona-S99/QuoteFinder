@@ -8,6 +8,8 @@ collections:
     path: "collections/vector-db"
   - name: "pages"
     path: "collections/pages"
+  - name: "retrieval"
+    path: "collections/retrieval"
 
 specs:
 
