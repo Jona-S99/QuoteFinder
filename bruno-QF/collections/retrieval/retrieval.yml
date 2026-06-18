@@ -10,7 +10,9 @@ http:
     type: json
     data: |-
       {
-        "query": "Riesgos de la IA"
+        "query": "Riesgos de la IA",
+        "embedding_model": "bge-m3:latest",
+        "top_k": 10
       }
   auth: inherit
 
