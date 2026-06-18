@@ -5,22 +5,48 @@
 # ---------------------------------------------------------------------------
 
 # Librerias
+import json
+from pathlib import Path
+
 from langchain_community.vectorstores import LanceDB
+from langchain_core.documents import Document
 from langchain_ollama import OllamaEmbeddings
 
-from app.config import TOP_K
+
+# ------------------------------------------------------------------------------ #
+#  Configuraciones generales
+# ------------------------------------------------------------------------------ #
+
+PARENT_STORE_PATH = Path("app/data/parent_store.json")
+EMBEDDING_MODEL = "bge-m3:latest"
+TOP_K = 10
 
 
-def config_retriever(top_k: int = TOP_K):
-    """Configura el retriever con el número de chunks a recuperar."""
+# ------------------------------------------------------------------------------ #
+#  Cargar parents chunks
+# ------------------------------------------------------------------------------ #
+
+def load_parent_store(path: Path = PARENT_STORE_PATH) -> dict:
+    """Funcion para cargar los parent chunks"""
+    # Carga los chunk parents guardados durante la construccion de la vector DB
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+# ------------------------------------------------------------------------------ #
+#  Retrieval
+# ------------------------------------------------------------------------------ #
+
+def config_retriever(
+    embedding_model: str = EMBEDDING_MODEL, 
+    top_k: int = TOP_K,
+):
+    """Configurar el retriever con el número de chunks a recuperar."""
     # Instanciamos el modelo de embeddings de Ollama
-
     embeddings = OllamaEmbeddings(
-        model="bge-m3:latest",
+        model=embedding_model,
     )
 
     # Cargamos la BD existente
-
     vector_db = LanceDB(
         uri="app/data/lancedb",
         embedding=embeddings,
@@ -30,28 +56,64 @@ def config_retriever(top_k: int = TOP_K):
     # Creamos el retriever
     retriever = vector_db.as_retriever(
         search_type="similarity",
-        search_kwargs={"k": TOP_K},  # número de chunks a recuperar
+        search_kwargs={"k": top_k},  # número de chunks a recuperar
     )
 
     return retriever
 
 
 # Creo una funcion para recuperar los chunks relevantes a partir de una consulta
-def retrieve_chunks(query: str) -> list[dict]:
+def retrieve_chunks(query: str) -> list[Document]:
     """
-    Recupera los chunks relevantes a partir de una consulta.
-
-    Args:
-        query (str): La consulta del usuario.
-
-    Returns:
-        list[dict]: Una lista de diccionarios con los chunks relevantes.
+    Recupera parents relevantes a partir de una consulta.
+    Primero busca child chunks en LanceDB y luego expande cada child a su parent.
     """
-    # Configuramos el retriever
+    # Aplico la configuracion del retriever
     retriever = config_retriever()
 
-    # Utilizamos el retriever para recuperar los chunks relevantes
-    relevant_chunks = retriever.invoke(query)
+    # Recupera children relevantes desde LanceDB
+    child_hits = retriever.invoke(query)
 
-    # Devolvemos los chunks relevantes como una lista de diccionarios
-    return relevant_chunks
+    # Carga los parents guardados en JSON
+    parent_store = load_parent_store()
+
+    # Guarda los parents finales que se entregaran al reranker/LLM
+    parent_docs: list[Document] = []
+
+    # Evita devolver el mismo parent mas de una vez
+    seen_parent_ids = set()
+
+    for child in child_hits:
+        # Lee el id del parent asociado al child encontrado
+        parent_id = child.metadata.get("parent_id")
+
+        # Si por algun motivo el child no tiene parent_id, lo saltamos
+        if not parent_id:
+            continue
+
+        # Si ya agregamos este parent, no lo repetimos
+        if parent_id in seen_parent_ids:
+            continue
+
+        # Busca el parent en el parent_store
+        parent = parent_store.get(parent_id)
+
+        # Si el parent_id no existe en el JSON, lo saltamos
+        if not parent:
+            continue
+        
+        seen_parent_ids.add(parent_id)
+
+        # Devuelve el texto grande del parent, pero conserva info del child que hizo match
+        parent_docs.append(
+            Document(
+                page_content=parent["text"],
+                metadata={
+                    **parent["metadata"],
+                    "matched_child_text": child.page_content,
+                    "matched_child_metadata": child.metadata,
+                },
+            )
+        )
+
+    return parent_docs

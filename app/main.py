@@ -10,10 +10,13 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.api_rag import router as rag_router
 from app.api.api_vector_db import router as vector_db_router
+from app.api.api_retrieval import router as retrieval_router
+
 from app.config import STATIC_DIR, TEMPLATES_DIR
 
 app = FastAPI()
 app.include_router(vector_db_router, prefix="/api/v1")
+app.include_router(retrieval_router, prefix="/api/v1")
 app.include_router(rag_router, prefix="/api/v1")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 

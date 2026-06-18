@@ -179,6 +179,7 @@ class BuildVectorDBResponse(BaseModel):
     message: str
     documents_count: int
     chunks_count: int
+    parents_count: int
     table_name: str
     uri: str
     embedding_model: str
@@ -198,6 +199,7 @@ async def build_vector_database(payload: BuildVectorDBRequest):
             message="Base vectorial creada exitosamente",
             documents_count=result["documents_count"],
             chunks_count=result["chunks_count"],
+            parents_count= result["parents_count"],
             table_name=result["table_name"],
             uri=result["uri"],
             embedding_model=result["embedding_model"]

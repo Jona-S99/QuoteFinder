@@ -68,7 +68,7 @@ def convert_to_markdown(
     # Exporta el documento convertido a texto en formato Markdown.
     if output_path is None:
         output_path = file_path.with_suffix(".md")
-    save_markdown(result.document.export_to_markdown(), output_path)
+    save_markdown(result.document.export_to_markdown(compact_tables=True), output_path)
 
 
 # Prueba de las funciones

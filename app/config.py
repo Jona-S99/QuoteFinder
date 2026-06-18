@@ -25,9 +25,6 @@ MD_DIR = DATA_DIR / "md"  # directorio de entrevistas convertidas a Markdown
 ALLOWED_EXTENSIONS = {".pdf", ".docx", ".md"}
 
 
-# Retriever
-TOP_K = 10  # numero de chunks a recuperar en el retriever
-
 # Rerank
 RERANK_MODEL = "ms-marco-TinyBERT-L-2-v2"  # modelo de reranking a utilizar
 CACHE_MODEL = "app/models/flashrank"  # ruta para cachear el modelo de reranking
