@@ -256,5 +256,4 @@ app/data/lancedb/
 app/models/flashrank
 
 # Carpetas que viven dentro de data
-data/*
-!data/.gitkeep
+data/
