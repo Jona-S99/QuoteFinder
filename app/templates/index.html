@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>QuoteFinder</title>
+    <link rel="stylesheet" href="/static/css/app.css" />
+    <script src="/static/js/app.js" defer></script>
+  </head>
+  <body>
+    <main class="app-shell">
+      <aside class="sidebar" aria-label="Configuracion de QuoteFinder">
+        <header class="brand">
+          <div>
+            <p class="eyebrow">QuoteFinder</p>
+            <h1>Mesa de citas</h1>
+          </div>
+          <span class="status-pill" id="database-status">Sin base</span>
+        </header>
+
+        <section class="panel" aria-labelledby="corpus-title">
+          <div class="section-heading">
+            <span class="step-marker">01</span>
+            <div>
+              <h2 id="corpus-title">Corpus</h2>
+              <p>Sube entrevistas, conviertelas y crea la base vectorial.</p>
+            </div>
+          </div>
+
+          <form id="corpus-form" class="stack">
+            <label class="file-drop" id="file-drop" for="documents">
+              <input
+                id="documents"
+                name="documents"
+                type="file"
+                multiple
+                accept=".pdf,.docx,.md"
+              />
+              <span class="file-icon" aria-hidden="true">+</span>
+              <span>
+                <strong>Agregar documentos</strong>
+                <small>PDF, DOCX o Markdown</small>
+              </span>
+            </label>
+
+            <div class="file-list" id="file-list" aria-live="polite">
+              <span>No hay archivos seleccionados</span>
+            </div>
+
+            <div class="button-row">
+              <button class="button primary" id="upload-button" type="button">
+                Subir
+              </button>
+              <button class="button" id="convert-button" type="button">
+                Convertir
+              </button>
+            </div>
+
+            <div class="field-grid two">
+              <label>
+                <span>Embedding</span>
+                <select id="embedding-model" name="embedding_model">
+                  <option value="bge-m3:latest">bge-m3:latest</option>
+                </select>
+              </label>
+              <button class="icon-button" id="refresh-models" type="button" title="Actualizar modelos">
+                R
+              </button>
+            </div>
+
+            <div class="field-grid">
+              <label>
+                <span>Parent size</span>
+                <input id="parent-size" type="number" min="1" value="2500" />
+              </label>
+              <label>
+                <span>Parent overlap</span>
+                <input id="parent-overlap" type="number" min="0" value="300" />
+              </label>
+              <label>
+                <span>Child size</span>
+                <input id="child-size" type="number" min="1" value="600" />
+              </label>
+              <label>
+                <span>Child overlap</span>
+                <input id="child-overlap" type="number" min="0" value="100" />
+              </label>
+            </div>
+
+            <div class="button-row">
+              <button class="button primary" id="build-button" type="button">
+                Crear base
+              </button>
+              <button class="button danger" id="clean-button" type="button">
+                Limpiar
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <section class="panel" aria-labelledby="retrieval-title">
+          <div class="section-heading">
+            <span class="step-marker">02</span>
+            <div>
+              <h2 id="retrieval-title">Busqueda</h2>
+              <p>Ajusta cuantos fragmentos pasan al reranking y al LLM.</p>
+            </div>
+          </div>
+
+          <div class="stack">
+            <div class="field-grid">
+              <label>
+                <span>Top K</span>
+                <input id="top-k" type="number" min="1" max="100" value="40" />
+              </label>
+              <label>
+                <span>Top ranked</span>
+                <input id="top-ranked" type="number" min="1" max="100" value="5" />
+              </label>
+            </div>
+
+            <label>
+              <span>LLM</span>
+              <input id="llm-model" type="text" value="llama3.2:3b" />
+            </label>
+          </div>
+        </section>
+
+        <section class="run-log" aria-labelledby="run-log-title">
+          <h2 id="run-log-title">Estado</h2>
+          <ol id="activity-log">
+            <li>Prepara el corpus para desbloquear el chat.</li>
+          </ol>
+        </section>
+      </aside>
+
+      <section class="chat-area" aria-label="Chat de citas">
+        <div class="chat-lock" id="chat-lock">
+          <div>
+            <p class="eyebrow">Chat bloqueado</p>
+            <h2>Crea la base vectorial para empezar a buscar citas.</h2>
+          </div>
+        </div>
+
+        <header class="chat-header">
+          <div>
+            <p class="eyebrow">Consulta RAG</p>
+            <h2>Pregunta por temas, conceptos o fragmentos.</h2>
+          </div>
+          <div class="chat-metrics" aria-live="polite">
+            <span><strong id="retrieved-count">0</strong> recuperados</span>
+            <span><strong id="reranked-count">0</strong> rerankeados</span>
+          </div>
+        </header>
+
+        <div class="messages" id="messages" aria-live="polite">
+          <article class="message assistant">
+            <p>
+              Cuando la base este lista, escribe una pregunta y devolvere citas en Markdown con su fuente.
+            </p>
+          </article>
+        </div>
+
+        <form class="composer" id="chat-form">
+          <label class="sr-only" for="query">Pregunta</label>
+          <textarea
+            id="query"
+            rows="2"
+            maxlength="1000"
+            placeholder="Buscar citas sobre participacion estudiantil, docencia, investigacion..."
+            disabled
+          ></textarea>
+          <button class="send-button" id="send-button" type="submit" disabled title="Enviar">
+            ^
+          </button>
+        </form>
+      </section>
+    </main>
+  </body>
+</html>
