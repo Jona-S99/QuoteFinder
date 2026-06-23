@@ -1,18 +1,20 @@
 info:
-  name: retrieval
+  name: ask-rag
   type: http
   seq: 1
 
 http:
   method: POST
-  url: http://localhost:8000/api/v1/retrieval/query
+  url: http://localhost:8000/api/v1/rag/ask
   body:
     type: json
     data: |-
       {
-        "query": "Riesgos de la IA",
+        "query": "Dame citas sobre los beneficios de la IA",
         "embedding_model": "bge-m3:latest",
-        "top_k": 10
+        "top_k": 40,
+        "top_ranked": 5,
+        "llm_model": "llama3.2:3b"
       }
   auth: inherit
 

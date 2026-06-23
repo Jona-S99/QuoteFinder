@@ -10,7 +10,11 @@ http:
     type: json
     data: |-
       {
-        "embedding_model": "bge-m3:latest"
+        "embedding_model": "bge-m3:latest",
+        "parent_size": 2500,
+        "parent_overlap": 300,
+        "child_size": 600,
+        "child_overlap": 100
       }
   auth: inherit
 
