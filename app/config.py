@@ -23,12 +23,3 @@ MD_DIR = DATA_DIR / "md"  # directorio de entrevistas convertidas a Markdown
 
 ## Extensoines de archivos permitidas para la conversion
 ALLOWED_EXTENSIONS = {".pdf", ".docx", ".md"}
-
-
-# Rerank
-RERANK_MODEL = "ms-marco-TinyBERT-L-2-v2"  # modelo de reranking a utilizar
-CACHE_MODEL = "app/models/flashrank"  # ruta para cachear el modelo de reranking
-TOP_RANKED = 5  # numero de chunks a mantener despues del reranking
-
-# LLM
-LLM_MODEL = "llama3.2:3b"  # modelo de LLM a utilizar

@@ -8,10 +8,10 @@
 
 from typing import TypedDict
 
+from langchain_core.documents import Document
 from langchain_ollama import ChatOllama
 from langgraph.graph import END, START, StateGraph
 
-from app.config import LLM_MODEL
 from app.rag.rerank import rerank_chunks
 from app.rag.retrieval import retrieve_chunks
 
@@ -21,6 +21,14 @@ try:
 except Exception:
     register = None
     LangChainInstrumentor = None
+
+
+# ---------------------------------------------------------------------------
+# Configuraciones iniciales
+# ---------------------------------------------------------------------------
+
+LLM_MODEL = "llama3.2:3b"  # modelo de LLM a utilizar
+
 
 
 # ---------------------------------------------------------------------------
@@ -46,8 +54,12 @@ else:
 # Defino el estado global
 class State(TypedDict):
     query: str
-    retrieved_chunks: list[str]
-    reranked_chunks: list[str]
+    embedding_model: str
+    top_k: int
+    retrieved_chunks: list[Document]
+    top_ranked: int
+    reranked_chunks: list[Document]
+    llm_model: str
     final_answer: str
 
 
@@ -61,23 +73,41 @@ graph = StateGraph(State)
 
 
 def retrieve_node(state: State) -> State:
-    state["retrieved_chunks"] = retrieve_chunks(state["query"])
+    state["retrieved_chunks"] = retrieve_chunks(
+        query=state["query"],
+        embedding_model=state["embedding_model"],
+        top_k=state["top_k"]
+    )
     return state
 
 
 def rerank_node(state: State) -> State:
-    state["reranked_chunks"] = rerank_chunks(state["query"], state["retrieved_chunks"])
+    state["reranked_chunks"] = rerank_chunks(
+        query=state["query"],
+        docs=state["retrieved_chunks"],
+        top_ranked=state["top_ranked"]
+    )
     return state
 
 
 def response_node(state: State) -> State:
     query = state["query"]
-    chunks_reranked = state["reranked_chunks"]
+    top_ranked=state["top_ranked"]
+    llm_model = state["llm_model"]
+
+    chunks_for_prompt = [
+        {
+            "source_file": doc.metadata.get("source_file"),
+            "participant": doc.metadata.get("participant"),
+            "page_content": doc.page_content,
+        }
+        for doc in state["reranked_chunks"]
+    ]
 
     prompt = f"""
     <rol>Eres un asistente de investigación que ayuda a formatear citas textuales de entrevistas.</rol>
-    <tarea>A partir de los siguientes chunks de texto, extrae las citas textuales y presentalas en formato Markdown, indicando la fuente de la cita</tarea>
-    <chunks>{chunks_reranked}</chunks>
+    <tarea>A partir de los siguientes chunks de texto, extrae las citas {top_ranked} textuales y presentalas en formato Markdown, indicando la fuente de la cita</tarea>
+    <chunks>{chunks_for_prompt}</chunks>
     <query_usuario>{query}</query_usuario>
     <reglas>Debes responder solo con las citas textuales encontradas en los chunks, sin agregar información adicional. Cada cita debe ir acompañada de su fuente, que se encuentra en la metadata de cada chunk bajo la clave "fuente". Si no hay citas que sirvan para responder al usuario, indica que no se encontraron citas.</reglas>
     <ejemplo_formato>
@@ -87,7 +117,7 @@ def response_node(state: State) -> State:
     """
 
     # Instancio ollama
-    llm = ChatOllama(model=LLM_MODEL, temperature=0)
+    llm = ChatOllama(model=llm_model, temperature=0)
     llm_response = llm.invoke(prompt)
     state["final_answer"] = llm_response.content
     return state
@@ -114,24 +144,3 @@ graph.add_edge("Response", END)
 # Compilar el grafo para su ejecución
 # ---------------------------------------------------------------------------
 graph_compiled = graph.compile()
-
-# def main():
-#     # Ejemplo de uso del grafo
-#     initial_state: State = {
-#         "query": "busca temas sobre andinismo",
-#         "retrieved_chunks": [],
-#         "reranked_chunks": [],
-#         "final_answer": "",
-#     }
-#     compiled = graph.compile()
-#     final_state = compiled.invoke(initial_state)
-#     # print(final_state["retrieved_chunks"])
-#     print("#" * 80)
-#     print(final_state["reranked_chunks"])
-#     print("#" * 80)
-#     print("#" * 80)
-#     print(final_state["final_answer"])
-
-
-# if __name__ == "__main__":
-#     main()

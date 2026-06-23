@@ -20,6 +20,10 @@ MD_DIR = Path("app/data/md")
 LANCEDB_DIR = "app/data/lancedb"
 TABLE_NAME = "entrevistas"
 EMBEDDING_MODEL = "bge-m3:latest"
+PARENT_SIZE = 2500
+PARENT_OVERLAP = 300
+CHILD_SIZE = 600
+CHILD_OVERLAP = 100
 PARENT_STORE_PATH = Path("app/data/parent_store.json")
 
 # ------------------------------------------------------------------------------ #
@@ -34,7 +38,11 @@ def load_markdown_documents(md_dir: Path = MD_DIR) -> list[tuple[str, str]]:
 
 
 # Funcion auxiliar para crear los chunks padres usando un recursive splitter
-def split_into_parent_chunks(text: str, parent_size: int = 2500, parent_overlap: int = 300) -> list[str]:
+def split_into_parent_chunks(
+    text: str,
+    parent_size: int = PARENT_SIZE,
+    parent_overlap: int = PARENT_OVERLAP,
+) -> list[str]:
     # Esta función crea chunks grandes, llamados "parents"
     # Los parents no se vectorizan directamente: sirven como contexto amplio para el LLM
 
@@ -59,7 +67,11 @@ def split_into_parent_chunks(text: str, parent_size: int = 2500, parent_overlap:
 
 
 # Funcion auxiliar para crear los chunks padres usando un recursive splitter
-def split_into_child_chunks(text: str, child_size: int = 600, child_overlap: int = 100) -> list[str]:
+def split_into_child_chunks(
+    text: str,
+    child_size: int = CHILD_SIZE,
+    child_overlap: int = CHILD_OVERLAP,
+) -> list[str]:
     # Esta funcion crea chunks children
     # Los children si se guardan en LanceDB porque son mejores para busqueda semantica precisa
 
@@ -81,7 +93,13 @@ def split_into_child_chunks(text: str, child_size: int = 600, child_overlap: int
 
 
 # Funcion principal para chunking
-def split_markdown_documents_parent_child(documents: list[tuple[str, str]]) -> tuple[list[Document], dict]:
+def split_markdown_documents_parent_child(
+    documents: list[tuple[str, str]],
+    parent_size: int = PARENT_SIZE,
+    parent_overlap: int = PARENT_OVERLAP,
+    child_size: int = CHILD_SIZE,
+    child_overlap: int = CHILD_OVERLAP,
+) -> tuple[list[Document], dict]:
     # child_chunks son los documentos pequeños que irán a LanceDB con embeddings
     child_chunks: list[Document] = []
 
@@ -92,8 +110,8 @@ def split_markdown_documents_parent_child(documents: list[tuple[str, str]]) -> t
         # Primero divido el documento completo en bloques grandes
         parent_chunks = split_into_parent_chunks(
             contenido,
-            parent_size=2500,
-            parent_overlap=300,
+            parent_size=parent_size,
+            parent_overlap=parent_overlap,
         )
 
         for parent_index, parent_text in enumerate(parent_chunks):
@@ -115,8 +133,8 @@ def split_markdown_documents_parent_child(documents: list[tuple[str, str]]) -> t
             # Divide cada parent en children pequeños
             child_texts = split_into_child_chunks(
                 parent_text,
-                child_size=600,
-                child_overlap=100,
+                child_size=child_size,
+                child_overlap=child_overlap,
             )
 
             for child_index, child_text in enumerate(child_texts):
@@ -162,6 +180,10 @@ def build_vector_db(
     uri: str = LANCEDB_DIR,
     table_name: str = TABLE_NAME,
     embedding_model: str = EMBEDDING_MODEL,
+    parent_size: int = PARENT_SIZE,
+    parent_overlap: int = PARENT_OVERLAP,
+    child_size: int = CHILD_SIZE,
+    child_overlap: int = CHILD_OVERLAP,
 ):
     """Función para construir la base de datos vectorial a partir de los documentos markdown."""
     # Cargo los documentos markdown desde el directorio "md"
@@ -172,7 +194,13 @@ def build_vector_db(
         raise ValueError("No hay archivos Markdown para procesar")
 
     # Divido los documentos markdown en chunks
-    child_chunks, parent_store = split_markdown_documents_parent_child(docs)
+    child_chunks, parent_store = split_markdown_documents_parent_child(
+        docs,
+        parent_size=parent_size,
+        parent_overlap=parent_overlap,
+        child_size=child_size,
+        child_overlap=child_overlap,
+    )
 
     # Guardo los parent chunks para luego poder acceder a ellos
     save_parent_store(parent_store)
@@ -192,6 +220,10 @@ def build_vector_db(
     return {
         "vector_db": vector_db,
         "embedding_model": embedding_model,
+        "parent_size": parent_size,
+        "parent_overlap": parent_overlap,
+        "child_size": child_size,
+        "child_overlap": child_overlap,
         "documents_count": len(docs),
         "chunks_count": len(child_chunks),
         "parents_count": len(parent_store),

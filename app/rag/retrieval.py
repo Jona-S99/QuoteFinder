@@ -12,14 +12,13 @@ from langchain_community.vectorstores import LanceDB
 from langchain_core.documents import Document
 from langchain_ollama import OllamaEmbeddings
 
-
 # ------------------------------------------------------------------------------ #
 #  Configuraciones generales
 # ------------------------------------------------------------------------------ #
 
 PARENT_STORE_PATH = Path("app/data/parent_store.json")
 EMBEDDING_MODEL = "bge-m3:latest"
-TOP_K = 10
+RETRIEVAL_TOP_K = 40
 
 
 # ------------------------------------------------------------------------------ #
@@ -36,9 +35,10 @@ def load_parent_store(path: Path = PARENT_STORE_PATH) -> dict:
 #  Retrieval
 # ------------------------------------------------------------------------------ #
 
+# Configuracion general del retriever
 def config_retriever(
     embedding_model: str = EMBEDDING_MODEL, 
-    top_k: int = TOP_K,
+    top_k: int = RETRIEVAL_TOP_K,
 ):
     """Configurar el retriever con el número de chunks a recuperar."""
     # Instanciamos el modelo de embeddings de Ollama
@@ -66,7 +66,7 @@ def config_retriever(
 def retrieve_chunks(
     query: str,
     embedding_model: str = EMBEDDING_MODEL,
-    top_k: int = TOP_K,
+    top_k: int = RETRIEVAL_TOP_K,
 ) -> list[Document]:
     """
     Recupera parents relevantes a partir de una consulta.

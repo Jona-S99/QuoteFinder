@@ -13,7 +13,9 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
-from app.rag.graph import graph_compiled, State
+from app.rag.graph import LLM_MODEL, State, graph_compiled
+from app.rag.rerank import TOP_RANKED
+from app.rag.retrieval import EMBEDDING_MODEL, RETRIEVAL_TOP_K
 
 router = APIRouter(tags=["RAG"])
 
@@ -21,24 +23,43 @@ router = APIRouter(tags=["RAG"])
 # ---------------------------------------------------------------------------- #
 # Clases para request y response del endpoint
 # ---------------------------------------------------------------------------- #
+
+# Clase para el input del usuario
 class RagQueryRequest(BaseModel):
-    # Query del usuario. Se limita para evitar requests absurdamente grandes.
     query: str = Field(
         ...,
         min_length=1,
         max_length=1_000,
         description="Pregunta o tema para buscar citas en las entrevistas.",
     )
+    embedding_model: str = Field(
+        default=EMBEDDING_MODEL,
+        min_length=1,
+        description="Modelo de embeddings para hacer retrieval en LanceDB.",
+    )
+    top_k: int = Field(
+        default=RETRIEVAL_TOP_K,
+        ge=1,
+        le=100,
+        description="Cantidad de chunks a recuperar antes del reranking.",
+    )
+    top_ranked: int = Field(
+        default=TOP_RANKED,
+        ge=1,
+        le=100,
+        description="Cantidad de chunks a conservar después del reranking.",
+    )
+    llm_model: str = Field(
+        default=LLM_MODEL,
+        min_length=1,
+        description="Modelo LLM local que generará la respuesta final.",
+    )
 
 
+# Clase para la respuesta del modelo
 class RagQueryResponse(BaseModel):
-    # Respuesta final que produjo el nodo Response.
     answer: str
-
-    # Cantidad de chunks encontrados por retrieval.
     retrieved_chunks_count: int
-
-    # Cantidad de chunks que quedaron después del reranking.
     reranked_chunks_count: int
 
 
@@ -46,16 +67,13 @@ class RagQueryResponse(BaseModel):
 # Funcion para ejecutar el grafo RAG a partir de la consulta del usuario
 # ---------------------------------------------------------------------------- #
 
-
-def run_rag_graph(query: str) -> State:
-    """
-    Función de servicio mínima.
-
-    Mantiene el endpoint delgado:
-    el endpoint valida HTTP, y esta función sabe cómo llamar al grafo.
-    """
+def run_rag_graph(payload: RagQueryRequest) -> State:
     initial_state: State = {
-        "query": query,
+        "query": payload.query,
+        "embedding_model": payload.embedding_model,
+        "top_k": payload.top_k,
+        "top_ranked": payload.top_ranked,
+        "llm_model": payload.llm_model,
         "retrieved_chunks": [],
         "reranked_chunks": [],
         "final_answer": "",
@@ -68,7 +86,6 @@ def run_rag_graph(query: str) -> State:
 # Endpoint para ejecutar el grafo RAG
 # ---------------------------------------------------------------------------- #
 
-
 @router.post(
     "/rag/ask",
     response_model=RagQueryResponse,
@@ -77,9 +94,7 @@ def run_rag_graph(query: str) -> State:
 )
 async def ask_rag(payload: RagQueryRequest) -> RagQueryResponse:
     try:
-        # Como graph_compiled.invoke es sincrono, lo movemos a un threadpool.
-        # Así FastAPI no queda bloqueado mientras corre retrieval, rerank y LLM.
-        final_state = await run_in_threadpool(run_rag_graph, payload.query)
+        final_state = await run_in_threadpool(run_rag_graph, payload)
 
         return RagQueryResponse(
             answer=final_state["final_answer"],
@@ -88,14 +103,12 @@ async def ask_rag(payload: RagQueryRequest) -> RagQueryResponse:
         )
 
     except ValueError as e:
-        # Util si retrieval/rerank lanza errores esperados de validacion.
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         )
 
     except Exception as e:
-        # Error inesperado del pipeline.
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error ejecutando el grafo RAG: {str(e)}",

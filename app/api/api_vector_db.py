@@ -13,11 +13,18 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.config import ALLOWED_EXTENSIONS, MD_DIR, RAW_DIR
 from app.rag.converter import convert_to_markdown
-from app.rag.vector_db import build_vector_db
+from app.rag.vector_db import (
+    CHILD_OVERLAP,
+    CHILD_SIZE,
+    EMBEDDING_MODEL,
+    PARENT_OVERLAP,
+    PARENT_SIZE,
+    build_vector_db,
+)
 
 router = APIRouter()
 
@@ -171,7 +178,11 @@ async def get_embedding_models() -> EmbeddingModelsResponse:
 # - En este caso, el modelo en el body, de lo contrario, build_vector_db
 #   usara el modelo por defecto que puse en app/rag/vector_db.py ("bge-m3:latest")
 class BuildVectorDBRequest(BaseModel):
-    embedding_model: str
+    embedding_model: str = Field(default=EMBEDDING_MODEL, min_length=1)
+    parent_size: int = Field(default=PARENT_SIZE, ge=1)
+    parent_overlap: int = Field(default=PARENT_OVERLAP, ge=0)
+    child_size: int = Field(default=CHILD_SIZE, ge=1)
+    child_overlap: int = Field(default=CHILD_OVERLAP, ge=0)
 
 
 # Modelo pydantic para la respuesta de la API
@@ -183,6 +194,10 @@ class BuildVectorDBResponse(BaseModel):
     table_name: str
     uri: str
     embedding_model: str
+    parent_size: int
+    parent_overlap: int
+    child_size: int
+    child_overlap: int
 
 
 @router.post("/vector-db/build", response_model=BuildVectorDBResponse)
@@ -193,6 +208,10 @@ async def build_vector_database(payload: BuildVectorDBRequest):
         # como parametro
         result = build_vector_db(
             embedding_model=payload.embedding_model,
+            parent_size=payload.parent_size,
+            parent_overlap=payload.parent_overlap,
+            child_size=payload.child_size,
+            child_overlap=payload.child_overlap,
         )
 
         return BuildVectorDBResponse(
@@ -202,7 +221,11 @@ async def build_vector_database(payload: BuildVectorDBRequest):
             parents_count= result["parents_count"],
             table_name=result["table_name"],
             uri=result["uri"],
-            embedding_model=result["embedding_model"]
+            embedding_model=result["embedding_model"],
+            parent_size=result["parent_size"],
+            parent_overlap=result["parent_overlap"],
+            child_size=result["child_size"],
+            child_overlap=result["child_overlap"],
         )
     
     except ValueError as e:
